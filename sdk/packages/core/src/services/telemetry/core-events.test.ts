@@ -356,6 +356,21 @@ describe("telemetry policy: helpers respect telemetry opt-out", () => {
 		expect(emitRequired).not.toHaveBeenCalled();
 	});
 
+	test("captureProviderConfigured never invokes captureRequired", () => {
+		// `user.provider_configured` is a normal funnel event for the BYO
+		// onboarding path — it must respect telemetry opt-out, same as the
+		// other `user.*` / `workspace.*` helpers above. If this ever
+		// regresses to `captureRequired`, the BYO save would bypass the
+		// user's opt-out, which is exactly the policy this suite locks in.
+		const { adapter, emitRequired } = createDisabledAdapter();
+		const service = new TelemetryService({
+			distinctId: "test-distinct-id",
+			adapters: [adapter],
+		});
+		captureProviderConfigured(service, "anthropic");
+		expect(emitRequired).not.toHaveBeenCalled();
+	});
+
 	test("a correctly-policed adapter drops these events when disabled", () => {
 		// This test layers on top of the previous four to assert the *full*
 		// end-to-end policy: when the adapter is disabled, a real adapter
@@ -400,12 +415,14 @@ describe("telemetry policy: helpers respect telemetry opt-out", () => {
 			context: "search_codebase",
 			resolution_type: "fallback_to_primary",
 		});
+		captureProviderConfigured(service, "anthropic");
 		expect(observed).toEqual([]);
 		expect(dropped).toEqual([
 			"user.extension_activated",
 			"workspace.initialized",
 			"workspace.init_error",
 			"workspace.path_resolved",
+			"user.provider_configured",
 		]);
 	});
 });
